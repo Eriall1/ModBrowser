@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
                              QListWidgetItem, QHBoxLayout, QPushButton,QVBoxLayout, QTextEdit, QLabel, QComboBox)
 from PyQt5.QtCore import Qt
 
+from env import APIKEY
+
 from CurseForgeAPy import CurseForgeAPI
 from CurseForgeAPy.SchemaClasses import Mod, ModSearchSortField, SortOrder
 
@@ -10,7 +12,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.api = CurseForgeAPI("$2a$10$r1yzodsjerK60f/Ed9wIeedoxIgUpEzwqATilRvPEe54bovrccCSW")
+        self.api = CurseForgeAPI(APIKEY)
 
         # Create the list widget and set its selection mode
         self.list_widget = QListWidget(self)
