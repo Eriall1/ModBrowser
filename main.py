@@ -1,11 +1,17 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
                              QListWidgetItem, QHBoxLayout, QPushButton,QVBoxLayout, QLineEdit, QLabel, QComboBox,QMainWindow)
+
+import time
 from PyQt5.QtCore import Qt
 
 import threading
 
 from env import APIKEY
+
+import os
+
+import requests
 
 from CurseForgeAPy import CurseForgeAPI
 from CurseForgeAPy.SchemaClasses import ModSearchSortField, SortOrder, GetModResponse, Mod, GetModFileResponse, FileRelationType, GetModFilesRequestBody,GetFilesResponse, ModLoaderType, File, ApiResponseCode
@@ -249,8 +255,6 @@ class MainWindow(QMainWindow):
 
         files: GetFilesResponse = self.api.getFiles(GetModFilesRequestBody(ids))
 
-        
-
         if not isinstance(files, ApiResponseCode): 
             files = files.data
 
@@ -283,10 +287,17 @@ class MainWindow(QMainWindow):
         #labels
         self.dlC1.addWidget(QLabel("Mods to Download"))
         self.dlC2.addWidget(QLabel("Dependencies"))
+        
+        self.consButton = QPushButton("Consolidate")
+        self.consButton.clicked.connect(lambda: self.consolidate())   
+
         dlbutton = QPushButton("Download!")
+        dlbutton.clicked.connect(self.downloadAll)
+
+
+        self.dlC3.addWidget(self.consButton)
         self.dlC3.addWidget(dlbutton)
 
-        dlbutton.clicked.connect(self.downloadAll)
 
         #list widgets
         self.cselected_mods.setFixedWidth(200)
@@ -303,9 +314,9 @@ class MainWindow(QMainWindow):
             for i in mod.latestFilesIndexes:
                 if self.cversion in i.gameVersion and i.modLoader == ModLoaderType.Forge:
                     ids.append(i.fileId)
-
+            if ids == []:
+                continue
             files: GetFilesResponse = self.api.getFiles(GetModFilesRequestBody(ids))
-
             if not isinstance(files, ApiResponseCode): 
                 files = files.data
 
@@ -328,9 +339,6 @@ class MainWindow(QMainWindow):
                 item = QListWidgetItem(mod.name)
                 item.setData(Qt.UserRole, mod)
                 self.dependancies.addItem(item)
-            
-
-                
 
         #Add
         self.dlC1.addWidget(self.cselected_mods)
@@ -344,6 +352,29 @@ class MainWindow(QMainWindow):
         
         self.setCentralWidget(self.DlWidget)
         #endregion
+
+    def consolidate(self):
+        list_1 = self.deepcopy(self.dependancies)
+        takeList = []
+        # make list_1 contain only 1 of each item
+        for i in range(list_1.count()):
+            item = list_1.item(i)
+            name = item.text()
+            nitem = QListWidgetItem(name)
+            nitem.setData(Qt.UserRole, item.data(Qt.UserRole))
+            for i in takeList:
+                if i[0] == name:
+                    break
+            else:
+                takeList.append((name, nitem))
+        #iterate through takeList and add dependencies to final
+        self.dependancies.clear()
+
+        for item in takeList:
+            self.dependancies.addItem(item[1])
+
+
+
 
     def deepcopy(self, original_list_widget):
         # Add items to the original list widget
@@ -388,7 +419,6 @@ class MainWindow(QMainWindow):
                     ids.append(i.fileId)
 
             files: GetFilesResponse = self.api.getFiles(GetModFilesRequestBody(ids))
-
             if not isinstance(files, ApiResponseCode): 
                 files = files.data
 
@@ -417,6 +447,32 @@ class MainWindow(QMainWindow):
         
         urls = list(set(urls))
         print(urls)
+
+        # create a folder for the downloads
+        self.DLFolder = os.path.join(os.getcwd(), "Downloads")
+        if not os.path.exists(self.DLFolder):
+            os.mkdir(self.DLFolder)
+        os.chdir(self.DLFolder)
+
+        # create a thread for each file download and start them
+        threads = []
+        for url in urls:
+            t = threading.Thread(target=self.downloadFile, args=(url,))
+            t.start()
+            threads.append(t)
+        
+        # wait for all threads to finish
+        for t in threads:
+            t.join()
+        
+        # open the folder
+        os.startfile(self.DLFolder)
+    
+    def downloadFile(self, url):
+        filename = url.split("/")[-1]
+        print(filename)
+        r = requests.get(url, allow_redirects=True)
+        open(filename, 'wb').write(r.content)
 
     def search(self):
         currentSearch = self.modName.text()
