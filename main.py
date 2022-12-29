@@ -1,9 +1,8 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QListWidget,
-                             QListWidgetItem, QHBoxLayout, QPushButton,QVBoxLayout, QLineEdit, QLabel, QComboBox,QMainWindow)
+                             QListWidgetItem, QHBoxLayout, QPushButton,QVBoxLayout, QLineEdit, QLabel, QComboBox,QMainWindow,QFileDialog)
 
-import time
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QIODevice, QFile, QDataStream
 
 import threading
 
@@ -288,15 +287,19 @@ class MainWindow(QMainWindow):
         self.dlC1.addWidget(QLabel("Mods to Download"))
         self.dlC2.addWidget(QLabel("Dependencies"))
         
-        self.consButton = QPushButton("Consolidate")
-        self.consButton.clicked.connect(lambda: self.consolidate())   
+        consButton = QPushButton("Consolidate")
+        consButton.clicked.connect(lambda: self.consolidate())   
 
         dlbutton = QPushButton("Download!")
         dlbutton.clicked.connect(self.downloadAll)
 
+        exportButton = QPushButton("Export")
+        exportButton.clicked.connect(self.export)
 
-        self.dlC3.addWidget(self.consButton)
+
+        self.dlC3.addWidget(consButton)
         self.dlC3.addWidget(dlbutton)
+        self.dlC3.addWidget(exportButton)
 
 
         #list widgets
@@ -350,8 +353,31 @@ class MainWindow(QMainWindow):
         self.dlLayout.addLayout(self.dlC3)
 
         
+        self.resize(850, 300)
         self.setCentralWidget(self.DlWidget)
         #endregion
+
+    def export(self):
+        # Display the "Save As" dialog and get the file name and path from the user. Specify the .obj extension in the filter
+        fileName, _ = QFileDialog.getSaveFileName(filter="*.obj")
+
+        # create a QFile object and pass the file name and path as an argument to its constructor
+        file = QFile(fileName)
+
+        # open the file in write mode
+        if file.open(QIODevice.WriteOnly):
+            # create a QDataStream object and pass the QFile object as an argument to its constructor
+            stream = QDataStream(file)
+
+            # iterate through the items in the QListWidget and write each item's data to the stream
+            for i in range(self.cselected_mods.count()):
+                item = self.cselected_mods.item(i)
+                stream.writeQVariant(item.data(Qt.UserRole))
+            # close the file
+            file.close()
+        else:
+            # file could not be opened
+            print("Error opening file")
 
     def consolidate(self):
         list_1 = self.deepcopy(self.dependancies)
